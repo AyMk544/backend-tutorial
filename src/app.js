@@ -14,4 +14,10 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" })); // helps in unde
 app.use(express.static("public")) // static files will be stored in public folder
 app.use(cookieParser())
 
+// import routes
+import userRouter from "./routes/user.routes.js"
+
+// routes declaration
+app.use("/api/v1/users", userRouter);
+
 export { app }
