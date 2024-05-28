@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose";
 
 const generateRefreshAndAccessTokens = async (userId) => {
     try {
@@ -316,28 +317,28 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     const channel = await User.aggregate([
         {
             $match: {
-                username: username?.toLowerCase()
+                username: username?.toLowerCase()   // find user with username of the channel requested
             }
         },
         {
             $lookup: {
-                from: "subscriptions",
-                localField: "_id",
+                from: "subscriptions",      // finds the objects from the subscriptions model whose channel                    
+                localField: "_id",          // field matches with id field of requested user.
                 foreignField: "channel",
                 as: "subscribers"
             }
         },
         {
             $lookup: {
-                from: "subscriptions",
-                localField: "_id",
+                from: "subscriptions",      // finds the objects from the subscriptions model whose subscriber                    
+                localField: "_id",          // field matches with id field of requested user.
                 foreignField: "subscriber",
                 as: "subscribedTo"
             }
         },
         {
-            $addFields: {
-                subscribersCount: {
+            $addFields: {                   // adds subscribersCount, channelsSubscribedToCount, isSubscribed as
+                subscribersCount: {         // fields in the returned object
                     $size: "subscribers"
                 },
                 channelsSubscribedToCount: {
@@ -354,7 +355,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             }
         },
         {
-            $project: {
+            $project: {              // the fields which will be projected in the returned object
                 fullname: 1,
                 username: 1,
                 subscribersCount: 1,
@@ -378,6 +379,60 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         )
 })
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: mongoose.Types.ObjectId.createFromHexString(req.user._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user[0].watchHistory,
+                "Watch history fetched successfully"
+            )
+        )
+})
+
 export {
     registerUser,
     loginUser,
@@ -388,5 +443,6 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getWatchHistory
 }
