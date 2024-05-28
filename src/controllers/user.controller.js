@@ -142,8 +142,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set: {
-                refreshToken: undefined
+            $unset: {
+                refreshToken: 1
             }
         }
     )
@@ -339,7 +339,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         {
             $addFields: {                   // adds subscribersCount, channelsSubscribedToCount, isSubscribed as
                 subscribersCount: {         // fields in the returned object
-                    $size: "subscribers"
+                    $size: "$subscribers"
                 },
                 channelsSubscribedToCount: {
                     $size: "$subscribedTo"
@@ -375,7 +375,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            new ApiResponse(200, channel[0], "User channel fetches successfully")
+            new ApiResponse(200, channel[0], "User channel fetched successfully")
         )
 })
 
@@ -383,7 +383,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([
         {
             $match: {
-                _id: mongoose.Types.ObjectId.createFromHexString(req.user._id)
+                _id: new mongoose.Types.ObjectId(req.user._id)
             }
         },
         {
